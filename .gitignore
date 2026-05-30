@@ -11,6 +11,7 @@ __pycache__/
 .venv/
 venv/
 env/
+backend/.venv/
 
 # Streamlit / local logs
 .streamlit/secrets.toml
@@ -34,3 +35,10 @@ data/modelscope_home/
 Thumbs.db
 .idea/
 .vscode/
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.env
+frontend/.env.local
+frontend/.env.*.local
