@@ -11,6 +11,7 @@ export type CourseStats = {
   chunk_count: number;
   qa_count: number;
   question_count: number;
+  wrong_question_count?: number;
 };
 
 export type DocumentRecord = {
@@ -60,7 +61,7 @@ export type QAHistoryItem = {
   course_id: number;
   question: string;
   answer: string;
-  sources: string;
+  sources: string | Source[];
   created_at: string;
 };
 
@@ -82,11 +83,52 @@ export type QuestionRecord = {
   answer: string;
   analysis: string;
   knowledge_point: string;
-  sources: string;
+  sources: string | Source[];
   created_at: string;
 };
 
 export type SummaryResponse = {
   summary: string;
   sources: Source[];
+};
+
+export type WrongQuestion = {
+  id: number;
+  course_id: number;
+  question_id?: number | null;
+  source_type: string;
+  question_type?: string;
+  difficulty?: string;
+  question_content: string;
+  user_answer?: string;
+  correct_answer?: string;
+  analysis?: string;
+  knowledge_point?: string;
+  sources?: string | Source[];
+  note?: string;
+  status: "未掌握" | "已掌握";
+  review_count: number;
+  last_reviewed_at?: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type WrongQuestionCreate = {
+  question_id?: number | null;
+  source_type: string;
+  question_type?: string;
+  difficulty?: string;
+  question_content: string;
+  user_answer?: string;
+  correct_answer?: string;
+  analysis?: string;
+  knowledge_point?: string;
+  sources?: Source[] | string;
+  note?: string;
+};
+
+export type WrongQuestionUpdate = {
+  note?: string;
+  status?: "未掌握" | "已掌握";
+  user_answer?: string;
 };

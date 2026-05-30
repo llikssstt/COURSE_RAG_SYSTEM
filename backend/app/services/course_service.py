@@ -36,4 +36,5 @@ def get_course_stats(course_id: int) -> dict:
         "chunk_count": db.count_chunks(course_id),
         "qa_count": db.count_qa_history(course_id),
         "question_count": db.count_question_records(course_id),
+        "wrong_question_count": db.count_wrong_questions(course_id),
     }

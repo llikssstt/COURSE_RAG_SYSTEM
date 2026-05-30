@@ -23,3 +23,4 @@ class CourseStats(BaseModel):
     chunk_count: int
     qa_count: int
     question_count: int
+    wrong_question_count: int = 0

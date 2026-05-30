@@ -6,6 +6,7 @@ import { QAPage } from "./pages/QAPage";
 import { QuestionPage } from "./pages/QuestionPage";
 import { SummaryPage } from "./pages/SummaryPage";
 import { UploadPage } from "./pages/UploadPage";
+import { WrongBookPage } from "./pages/WrongBookPage";
 
 export function App() {
   return (
@@ -17,6 +18,7 @@ export function App() {
         <Route path="/upload" element={<UploadPage />} />
         <Route path="/qa" element={<QAPage />} />
         <Route path="/questions" element={<QuestionPage />} />
+        <Route path="/wrong-book" element={<WrongBookPage />} />
         <Route path="/summary" element={<SummaryPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

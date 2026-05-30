@@ -1,5 +1,5 @@
 import { NavLink } from "react-router-dom";
-import { BarChart3, BookOpen, FileQuestion, Home, MessageCircle, Upload, User } from "lucide-react";
+import { BarChart3, BookOpen, ClipboardList, FileQuestion, Home, MessageCircle, Upload, User } from "lucide-react";
 import { useAppStore } from "../../store/useAppStore";
 
 const navItems = [
@@ -8,6 +8,7 @@ const navItems = [
   { to: "/upload", label: "资料上传", icon: Upload },
   { to: "/qa", label: "智能问答", icon: MessageCircle },
   { to: "/questions", label: "自动出题", icon: FileQuestion },
+  { to: "/wrong-book", label: "错题本", icon: ClipboardList },
   { to: "/summary", label: "复习总结", icon: BarChart3 },
 ];
 

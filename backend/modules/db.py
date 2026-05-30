@@ -86,6 +86,29 @@ def init_db() -> None:
                 created_at TEXT NOT NULL,
                 FOREIGN KEY(course_id) REFERENCES courses(id)
             );
+
+            CREATE TABLE IF NOT EXISTS wrong_questions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                course_id INTEGER NOT NULL,
+                question_id INTEGER,
+                source_type TEXT NOT NULL,
+                question_type TEXT,
+                difficulty TEXT,
+                question_content TEXT NOT NULL,
+                user_answer TEXT,
+                correct_answer TEXT,
+                analysis TEXT,
+                knowledge_point TEXT,
+                sources TEXT,
+                note TEXT,
+                status TEXT NOT NULL DEFAULT '未掌握',
+                review_count INTEGER NOT NULL DEFAULT 0,
+                last_reviewed_at TEXT,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                FOREIGN KEY(course_id) REFERENCES courses(id),
+                FOREIGN KEY(question_id) REFERENCES question_bank(id)
+            );
             """
         )
 
@@ -252,6 +275,54 @@ def list_qa_history(course_id: int, limit: int = 20) -> list[dict[str, Any]]:
         return rows_to_dicts(rows)
 
 
+def get_qa_history_item(course_id: int, qa_id: int) -> dict[str, Any] | None:
+    with get_conn() as conn:
+        row = conn.execute(
+            "SELECT * FROM qa_history WHERE course_id = ? AND id = ?",
+            (course_id, qa_id),
+        ).fetchone()
+        return dict(row) if row else None
+
+
+def search_qa_history(
+    course_id: int,
+    keyword: str = "",
+    limit: int = 100,
+    offset: int = 0,
+) -> list[dict[str, Any]]:
+    sql = "SELECT * FROM qa_history WHERE course_id = ?"
+    params: list[Any] = [course_id]
+    if keyword.strip():
+        like = f"%{keyword.strip()}%"
+        sql += " AND (question LIKE ? OR answer LIKE ?)"
+        params.extend([like, like])
+    sql += " ORDER BY created_at DESC LIMIT ? OFFSET ?"
+    params.extend([limit, offset])
+    with get_conn() as conn:
+        return rows_to_dicts(conn.execute(sql, tuple(params)).fetchall())
+
+
+def delete_qa_history_item(course_id: int, qa_id: int) -> int:
+    with get_conn() as conn:
+        cur = conn.execute(
+            "DELETE FROM qa_history WHERE course_id = ? AND id = ?",
+            (course_id, qa_id),
+        )
+        return int(cur.rowcount)
+
+
+def delete_qa_history_items(course_id: int, ids: list[int]) -> int:
+    if not ids:
+        return 0
+    placeholders = ",".join("?" for _ in ids)
+    with get_conn() as conn:
+        cur = conn.execute(
+            f"DELETE FROM qa_history WHERE course_id = ? AND id IN ({placeholders})",
+            (course_id, *ids),
+        )
+        return int(cur.rowcount)
+
+
 def add_question_record(
     course_id: int,
     question_type: str,
@@ -292,3 +363,228 @@ def list_question_records(course_id: int, limit: int = 30) -> list[dict[str, Any
             (course_id, limit),
         ).fetchall()
         return rows_to_dicts(rows)
+
+
+def get_question_record(course_id: int, question_id: int) -> dict[str, Any] | None:
+    with get_conn() as conn:
+        row = conn.execute(
+            "SELECT * FROM question_bank WHERE course_id = ? AND id = ?",
+            (course_id, question_id),
+        ).fetchone()
+        return dict(row) if row else None
+
+
+def search_question_records(
+    course_id: int,
+    keyword: str = "",
+    question_type: str = "",
+    difficulty: str = "",
+    limit: int = 100,
+    offset: int = 0,
+) -> list[dict[str, Any]]:
+    sql = "SELECT * FROM question_bank WHERE course_id = ?"
+    params: list[Any] = [course_id]
+    if keyword.strip():
+        like = f"%{keyword.strip()}%"
+        sql += " AND (question_content LIKE ? OR knowledge_point LIKE ? OR answer LIKE ? OR analysis LIKE ?)"
+        params.extend([like, like, like, like])
+    if question_type.strip():
+        sql += " AND question_type = ?"
+        params.append(question_type.strip())
+    if difficulty.strip():
+        sql += " AND difficulty = ?"
+        params.append(difficulty.strip())
+    sql += " ORDER BY created_at DESC LIMIT ? OFFSET ?"
+    params.extend([limit, offset])
+    with get_conn() as conn:
+        return rows_to_dicts(conn.execute(sql, tuple(params)).fetchall())
+
+
+def delete_question_record(course_id: int, question_id: int) -> int:
+    with get_conn() as conn:
+        cur = conn.execute(
+            "DELETE FROM question_bank WHERE course_id = ? AND id = ?",
+            (course_id, question_id),
+        )
+        return int(cur.rowcount)
+
+
+def delete_question_records(course_id: int, ids: list[int]) -> int:
+    if not ids:
+        return 0
+    placeholders = ",".join("?" for _ in ids)
+    with get_conn() as conn:
+        cur = conn.execute(
+            f"DELETE FROM question_bank WHERE course_id = ? AND id IN ({placeholders})",
+            (course_id, *ids),
+        )
+        return int(cur.rowcount)
+
+
+def _serialize_sources(sources: Any) -> str:
+    if sources is None:
+        return "[]"
+    if isinstance(sources, str):
+        return sources
+    return json.dumps(sources, ensure_ascii=False)
+
+
+def add_wrong_question(
+    course_id: int,
+    question_id: int | None,
+    source_type: str,
+    question_type: str = "",
+    difficulty: str = "",
+    question_content: str = "",
+    user_answer: str = "",
+    correct_answer: str = "",
+    analysis: str = "",
+    knowledge_point: str = "",
+    sources: Any = None,
+    note: str = "",
+) -> int:
+    timestamp = now()
+    with get_conn() as conn:
+        cur = conn.execute(
+            """
+            INSERT INTO wrong_questions(
+                course_id, question_id, source_type, question_type, difficulty,
+                question_content, user_answer, correct_answer, analysis,
+                knowledge_point, sources, note, status, review_count,
+                last_reviewed_at, created_at, updated_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                course_id,
+                question_id,
+                source_type,
+                question_type,
+                difficulty,
+                question_content,
+                user_answer,
+                correct_answer,
+                analysis,
+                knowledge_point,
+                _serialize_sources(sources),
+                note,
+                "未掌握",
+                0,
+                None,
+                timestamp,
+                timestamp,
+            ),
+        )
+        return int(cur.lastrowid)
+
+
+def list_wrong_questions(
+    course_id: int,
+    keyword: str = "",
+    status: str = "",
+    knowledge_point: str = "",
+    limit: int = 100,
+    offset: int = 0,
+) -> list[dict[str, Any]]:
+    sql = "SELECT * FROM wrong_questions WHERE course_id = ?"
+    params: list[Any] = [course_id]
+    if keyword.strip():
+        like = f"%{keyword.strip()}%"
+        sql += " AND (question_content LIKE ? OR correct_answer LIKE ? OR analysis LIKE ? OR note LIKE ? OR knowledge_point LIKE ?)"
+        params.extend([like, like, like, like, like])
+    if status.strip():
+        sql += " AND status = ?"
+        params.append(status.strip())
+    if knowledge_point.strip():
+        sql += " AND knowledge_point LIKE ?"
+        params.append(f"%{knowledge_point.strip()}%")
+    sql += " ORDER BY updated_at DESC, created_at DESC LIMIT ? OFFSET ?"
+    params.extend([limit, offset])
+    with get_conn() as conn:
+        return rows_to_dicts(conn.execute(sql, tuple(params)).fetchall())
+
+
+def get_wrong_question(course_id: int, wrong_id: int) -> dict[str, Any] | None:
+    with get_conn() as conn:
+        row = conn.execute(
+            "SELECT * FROM wrong_questions WHERE course_id = ? AND id = ?",
+            (course_id, wrong_id),
+        ).fetchone()
+        return dict(row) if row else None
+
+
+def update_wrong_question(
+    course_id: int,
+    wrong_id: int,
+    note: str | None = None,
+    status: str | None = None,
+    user_answer: str | None = None,
+) -> int:
+    updates = []
+    params: list[Any] = []
+    if note is not None:
+        updates.append("note = ?")
+        params.append(note)
+    if status is not None:
+        updates.append("status = ?")
+        params.append(status)
+    if user_answer is not None:
+        updates.append("user_answer = ?")
+        params.append(user_answer)
+    if not updates:
+        return 0
+    updates.append("updated_at = ?")
+    params.append(now())
+    params.extend([course_id, wrong_id])
+    with get_conn() as conn:
+        cur = conn.execute(
+            f"UPDATE wrong_questions SET {', '.join(updates)} WHERE course_id = ? AND id = ?",
+            tuple(params),
+        )
+        return int(cur.rowcount)
+
+
+def delete_wrong_question(course_id: int, wrong_id: int) -> int:
+    with get_conn() as conn:
+        cur = conn.execute(
+            "DELETE FROM wrong_questions WHERE course_id = ? AND id = ?",
+            (course_id, wrong_id),
+        )
+        return int(cur.rowcount)
+
+
+def delete_wrong_questions(course_id: int, ids: list[int]) -> int:
+    if not ids:
+        return 0
+    placeholders = ",".join("?" for _ in ids)
+    with get_conn() as conn:
+        cur = conn.execute(
+            f"DELETE FROM wrong_questions WHERE course_id = ? AND id IN ({placeholders})",
+            (course_id, *ids),
+        )
+        return int(cur.rowcount)
+
+
+def mark_wrong_question_reviewed(course_id: int, wrong_id: int) -> int:
+    timestamp = now()
+    with get_conn() as conn:
+        cur = conn.execute(
+            """
+            UPDATE wrong_questions
+            SET review_count = review_count + 1,
+                last_reviewed_at = ?,
+                updated_at = ?
+            WHERE course_id = ? AND id = ?
+            """,
+            (timestamp, timestamp, course_id, wrong_id),
+        )
+        return int(cur.rowcount)
+
+
+def count_wrong_questions(course_id: int) -> int:
+    with get_conn() as conn:
+        row = conn.execute(
+            "SELECT COUNT(*) AS count FROM wrong_questions WHERE course_id = ?",
+            (course_id,),
+        ).fetchone()
+        return int(row["count"])

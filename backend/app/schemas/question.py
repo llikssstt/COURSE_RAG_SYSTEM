@@ -31,5 +31,13 @@ class QuestionRecordOut(BaseModel):
     answer: Optional[str] = ""
     analysis: Optional[str] = ""
     knowledge_point: Optional[str] = ""
-    sources: Optional[str] = ""
+    sources: list[dict[str, Any]] = []
     created_at: str
+
+
+class QuestionBatchDeleteRequest(BaseModel):
+    ids: list[int]
+
+
+class QuestionDeleteResponse(BaseModel):
+    deleted: int

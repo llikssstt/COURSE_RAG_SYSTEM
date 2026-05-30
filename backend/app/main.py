@@ -2,7 +2,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import config_api, courses, documents, knowledge_base, qa, questions, summaries
+from app.api import config_api, courses, documents, knowledge_base, qa, questions, summaries, wrong_questions
 from app.core.settings import settings
 from modules import db
 
@@ -40,4 +40,5 @@ app.include_router(knowledge_base.router, prefix=settings.api_prefix)
 app.include_router(qa.router, prefix=settings.api_prefix)
 app.include_router(questions.router, prefix=settings.api_prefix)
 app.include_router(summaries.router, prefix=settings.api_prefix)
+app.include_router(wrong_questions.router, prefix=settings.api_prefix)
 app.include_router(config_api.router, prefix=settings.api_prefix)

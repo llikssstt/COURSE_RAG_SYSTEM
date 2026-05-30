@@ -25,3 +25,20 @@ class QAResponse(BaseModel):
     retrieval_mode: Optional[str] = None
     route_type: Optional[str] = None
     retrieval_query: Optional[str] = None
+
+
+class QAHistoryOut(BaseModel):
+    id: int
+    course_id: int
+    question: str
+    answer: str
+    sources: list[dict[str, Any]] = []
+    created_at: str
+
+
+class BatchDeleteRequest(BaseModel):
+    ids: list[int]
+
+
+class DeleteResponse(BaseModel):
+    deleted: int
