@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Streamlit / local logs
+.streamlit/secrets.toml
+*.log
+
+# Runtime data
+data/app.db
+data/*.db
+data/chroma/
+data/uploads/
+
+# Local model and provider caches
+data/models/
+data/hf_home/
+data/hf_cache/
+data/modelscope/
+data/modelscope_home/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
