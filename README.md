@@ -6,7 +6,6 @@
 
 - 后端：FastAPI + SQLite + Chroma，复用原有 `modules/` RAG 核心代码。
 - 前端：React + Vite + TypeScript + Tailwind CSS，教育类 SaaS Dashboard 风格。
-- 旧版 Streamlit 入口保留为 `legacy_app.py`，用于对照。
 
 ## 目录结构
 
@@ -30,11 +29,26 @@ COURSE_RAG_SYSTEM/
 │   ├── vite.config.ts
 │   ├── tailwind.config.js
 │   └── src/
+├── modules/
+│   ├── db.py
+│   ├── document_parser.py
+│   ├── text_splitter.py
+│   ├── vector_store.py
+│   ├── rag_qa.py
+│   ├── question_generator.py
+│   ├── review_summary.py
+│   └── llm_client.py
+├── prompts/
+│   ├── qa_prompt.txt
+│   ├── question_prompt.txt
+│   └── summary_prompt.txt
+├── scripts/
 ├── data/
 │   ├── uploads/
 │   ├── chroma/
 │   └── app.db
-├── legacy_app.py
+├── config.py
+├── requirements.txt
 ├── README.md
 └── .gitignore
 ```
@@ -124,16 +138,18 @@ python scripts/download_bge_modelscope.py
 data/models/bge-small-zh-v1.5
 ```
 
-如果从旧的 384 维 mock embedding 切换到 512 维 BGE，必须重新构建课程知识库。上传资料页的“构建或更新当前课程知识库”会重置当前课程 collection 并重新写入向量。
-
 ## 核心功能
 
 1. 课程管理：新建课程、选择当前课程、查看资料数、chunk 数、问答数和题目数。
 2. 资料上传：支持 PDF、DOCX、PPTX，多文件上传到 `data/uploads/course_{course_id}/`。
 3. 知识库构建：解析文本、切分 chunk、写入 SQLite 和当前课程独立 Chroma collection。
 4. 智能问答：只检索当前课程知识库，返回答案、检索策略、查询类型、检索查询和参考来源。
-5. 自动出题：支持选择题、判断题、填空题、简答题；答案与解析默认折叠，适合先自测。
-6. 复习总结：支持课程复习提纲、重点知识总结、易混淆知识点、考前速记卡片。
+5. 问答历史管理：查看历史问答、查看详情、重新提问、删除单条或批量删除。
+6. 自动出题：支持选择题、判断题、填空题、简答题；答案与解析默认折叠，适合先自测。
+7. 历史题目管理：查看题目记录、查看详情、重新练习、删除单条或批量删除。
+8. 复习总结：支持课程复习提纲、重点知识总结、易混淆知识点、考前速记卡片。
+9. 错题本管理：从题目或问答加入错题本，支持备注、掌握状态、复习次数和删除。
+10. LLM API 配置：前端保存 API Key、Base URL 和模型名，请求时随问答、出题、总结提交。
 
 ## API 概览
 
@@ -147,9 +163,22 @@ data/models/bge-small-zh-v1.5
 - `POST /api/courses/{course_id}/knowledge-base/rebuild`
 - `POST /api/courses/{course_id}/qa`
 - `GET /api/courses/{course_id}/qa/history`
+- `GET /api/courses/{course_id}/qa/history/{qa_id}`
+- `DELETE /api/courses/{course_id}/qa/history/{qa_id}`
+- `DELETE /api/courses/{course_id}/qa/history`
 - `POST /api/courses/{course_id}/questions/generate`
 - `GET /api/courses/{course_id}/questions/history`
+- `GET /api/courses/{course_id}/questions/{question_id}`
+- `DELETE /api/courses/{course_id}/questions/{question_id}`
+- `DELETE /api/courses/{course_id}/questions`
 - `POST /api/courses/{course_id}/summaries/generate`
+- `GET /api/courses/{course_id}/wrong-questions`
+- `POST /api/courses/{course_id}/wrong-questions`
+- `GET /api/courses/{course_id}/wrong-questions/{wrong_id}`
+- `PATCH /api/courses/{course_id}/wrong-questions/{wrong_id}`
+- `POST /api/courses/{course_id}/wrong-questions/{wrong_id}/review`
+- `DELETE /api/courses/{course_id}/wrong-questions/{wrong_id}`
+- `DELETE /api/courses/{course_id}/wrong-questions`
 - `GET /api/config/defaults`
 
 ## 演示流程
@@ -162,7 +191,9 @@ data/models/bge-small-zh-v1.5
 6. 查看答案、检索策略和参考来源。
 7. 进入“自动出题”，输入知识范围“虚拟内存”，选择“选择题”“中等”“5 题”。
 8. 先作答，再展开“查看答案与解析”。
-9. 进入“复习总结”，生成“课程复习提纲”或“易混淆知识点”。
+9. 将不熟悉的题目加入错题本。
+10. 进入“错题本”，查看错题详情、添加备注、标记掌握状态或复习一次。
+11. 进入“复习总结”，生成“课程复习提纲”或“易混淆知识点”。
 
 ## 课程设计报告要点
 
@@ -176,7 +207,7 @@ RAG 技术适合把大模型与本地课程资料结合。SQLite、Chroma、Fast
 
 ### 需求分析
 
-系统需要支持课程隔离、资料解析、知识库构建、基于资料问答、自动出题、复习总结和历史记录保存。重点是可运行、可演示和结构清晰。
+系统需要支持课程隔离、资料解析、知识库构建、基于资料问答、自动出题、复习总结、历史记录保存和错题本管理。重点是可运行、可演示和结构清晰。
 
 ### 系统总体设计
 
@@ -190,10 +221,12 @@ RAG 技术适合把大模型与本地课程资料结合。SQLite、Chroma、Fast
 - 问答模块：混合检索、Prompt 组装、答案生成、历史保存。
 - 出题模块：按题型、难度、范围生成题目。
 - 总结模块：按总结类型生成 Markdown 复习内容。
+- 历史模块：保存和管理问答历史、题目历史。
+- 错题本模块：保存错题、复习卡片、掌握状态、备注和复习次数。
 
 ### 数据库设计
 
-SQLite 包含 `courses`、`documents`、`chunks`、`qa_history`、`question_bank`。所有业务记录都绑定 `course_id`，保证多课程隔离。
+SQLite 包含 `courses`、`documents`、`chunks`、`qa_history`、`question_bank`、`wrong_questions`。所有业务记录都绑定 `course_id`，保证多课程隔离。
 
 ### RAG 工作流程
 
@@ -222,6 +255,7 @@ SQLite 包含 `courses`、`documents`、`chunks`、`qa_history`、`question_bank
 - 同时支持问答、出题、总结三类复习任务。
 - 前端化 LLM 配置，API Key 不落库。
 - 答案解析折叠展示，符合学生自测流程。
+- 错题本承接问答历史和题目历史，形成复习闭环。
 
 ### 后续改进方向
 
